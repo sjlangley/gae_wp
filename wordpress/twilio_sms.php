@@ -6,8 +6,8 @@
 require_once 'google/appengine/api/taskqueue/PushTask.php';
 use \google\appengine\api\taskqueue\PushTask;
 
-require_once('wp-config.php');
 require_once "TwilioServices/Twilio.php";
+require_once('tw-config.php');
 
 if (isset($_POST['message'])) {
 	$message = $_POST['message'];
@@ -19,6 +19,7 @@ if (isset($_POST['message'])) {
 	}
 	elseif (isset($_POST['person'])) {
 		$person = $_POST['person'];
+		// TODO -- validity check on vars
 		$number = $_POST['number'];
 		sendTwilioSMS($message, $person, $number);
 
@@ -34,15 +35,19 @@ else {
 function sendTwilioSMSs($message, $people) {
 
     // Iterate over all elements in the $people array.
-    foreach ($people as $number => $name) {
-        // launch a task to send a new outgoing SMS to that person
-    		$task = new PushTask('/twilio_sms.php',
-    			['message' => "" . $message, 'person' => $name, 'number' => $number], ['method' => 'POST']);
-   			$task_name = $task->add();
-        // $body = "hello, $name.  $message";
-        // $client->account->sms_messages->create($from, $to, $body);
-        syslog(LOG_DEBUG, "started task to send twilio message to $name.");
-    }
+	  // iterate multiple times for temp larger-scale task deployment demo
+	  $annoying_count = 2;
+		for ( $i = 0; $i < $annoying_count; $i++ ) {
+	    foreach ($people as $number => $name) {
+	    		$cname = $name . " $i";
+	        // launch a task to send a new outgoing SMS to that person
+	    		$task = new PushTask('/twilio_sms.php',
+	    			['message' => $message, 'person' => $cname, 'number' => $number],
+	    			['method' => 'POST']);
+	   			$task_name = $task->add();
+	        syslog(LOG_DEBUG, "started task to send twilio message to $cname.");
+	    }
+	  }
 }
 
 function sendTwilioSMS($message, $person, $number) {
@@ -56,7 +61,7 @@ function sendTwilioSMS($message, $person, $number) {
     // Send a new outgoing SMS
     $body = "hello, $person.\n" . $message;
     $client->account->sms_messages->create($from, $number, $body);
-        syslog(LOG_DEBUG, "Sent twilio message to $name at $number: $body");
+    syslog(LOG_DEBUG, "Sent twilio message to $person at $number: $body");
 }
 
 

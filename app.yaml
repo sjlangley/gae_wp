@@ -1,5 +1,5 @@
-application: aju-ptests
-version: wp2
+application: your-app-id
+version: wp1
 runtime: php
 api_version: 1
 
@@ -36,6 +36,10 @@ handlers:
 
 - url: /twilio_sms.php
   script: wordpress/twilio_sms.php
+  login: admin
+
+- url: /publish_task.php
+  script: wordpress/publish_task.php
   login: admin
 
 - url: /xmlrpc.php

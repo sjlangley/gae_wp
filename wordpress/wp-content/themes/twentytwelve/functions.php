@@ -454,6 +454,8 @@ add_action( 'customize_preview_init', 'twentytwelve_customize_preview_js' );
 
 require_once 'google/appengine/api/taskqueue/PushTask.php';
 use \google\appengine\api\taskqueue\PushTask;
+require_once( ABSPATH . 'tw-config.php' );
+
 
 
 function wpr_updateNotification($post_id) {
@@ -462,15 +464,36 @@ function wpr_updateNotification($post_id) {
     $plink = post_permalink($post_id);
 
     $message = $author->display_name."'s post, '".$post->post_title."', has just been published or updated!\n" . $plink;
-    $people = array(
-    	"+61458558901" => "Amy",
-    	"+61478472595" => "Amy Jo",
-    );
-   syslog(LOG_DEBUG, "message: $message");
-   $task = new PushTask('/twilio_sms.php', ['message' => $message, 'people' => $people], ['method' => 'POST']);
-   $task_name = $task->add();
+    $people = TWILIO_PEOPLE_TO_SMS;
+    syslog(LOG_DEBUG, "message: $message");
+    $task = new PushTask('/twilio_sms.php', ['message' => $message, 'people' => $people], ['method' => 'POST']);
+    $task_name = $task->add();
 }
 add_action('publish_post', 'wpr_updateNotification');
 
-
+function schedulePublishTask($post_id) {
+	syslog(LOG_DEBUG, "in schedulePublishTask");
+	$post = get_post($post_id);
+	// syslog(LOG_DEBUG, "got post " . print_r($post, true));
+	$post_status = get_post_status( $post );
+	syslog(LOG_DEBUG, "post status: $post_status");
+	if ($post_status == 'future') {
+		$now = time();
+		$post_time = strtotime($post->post_date_gmt);
+		$seconds_until_post = $post_time - $now;
+		$max_seconds = $now + 2592000 - 60;
+		if ($seconds_until_post > 0 && $seconds_until_post < $max_seconds) {
+			syslog(LOG_DEBUG, "seconds until post: " . $seconds_until_post);
+			syslog(LOG_DEBUG, "creating publish task for $post_id, to run in $seconds_until_post");
+			$task = new PushTask('/publish_task.php',
+				['post_id' => $post_id], ['method' => 'POST', 'delay_seconds' => $seconds_until_post]);
+   			$task_name = $task->add();
+   			syslog(LOG_DEBUG, "finished adding task");
+   		}
+   		else {
+   			syslog(LOG_WARNING, "Date out of bounds; not scheduling task for date: " . $post->post_date_gmt);
+   		}
+	}
+}
+add_action('save_post', 'schedulePublishTask');
 
