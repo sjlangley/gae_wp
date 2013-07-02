@@ -1,6 +1,6 @@
 <?php
 /**
-  *
+  * Task handler
  */
 
 require_once 'google/appengine/api/taskqueue/PushTask.php';
@@ -12,12 +12,13 @@ require_once('tw-config.php');
 if (isset($_POST['message'])) {
 	$message = $_POST['message'];
 	syslog(LOG_DEBUG, $message);
+	// if this handler was called with an array of phone/name entries
 	if (isset($_POST['people'])) {
 		// TODO -- check for array
 		$people = $_POST['people'];
 		sendTwilioSMSs($message, $people);
 	}
-	elseif (isset($_POST['person'])) {
+	elseif (isset($_POST['person'])) { // else, individual person's info
 		$person = $_POST['person'];
 		// TODO -- validity check on vars
 		$number = $_POST['number'];
@@ -32,6 +33,7 @@ else {
 	syslog(LOG_WARNING, "Message not sent.");
 }
 
+//launch an SMS notification task for each person in the given $people array
 function sendTwilioSMSs($message, $people) {
 
     // Iterate over all elements in the $people array.
@@ -50,6 +52,7 @@ function sendTwilioSMSs($message, $people) {
 	  }
 }
 
+// send an outgoing SMS to the given name at the given number.
 function sendTwilioSMS($message, $person, $number) {
 
     // Instantiate a new Twilio Rest Client

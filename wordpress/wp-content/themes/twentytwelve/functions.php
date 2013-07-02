@@ -457,20 +457,23 @@ use \google\appengine\api\taskqueue\PushTask;
 require_once( ABSPATH . 'tw-config.php' );
 
 
-
+// launch a task to notify a list of people when a post has been published.
+// This task in turn will launch a task for each individual's notification.
 function wpr_updateNotification($post_id) {
     $post = get_post($post_id);
     $author = get_userdata($post->post_author);
     $plink = post_permalink($post_id);
 
     $message = $author->display_name."'s post, '".$post->post_title."', has just been published or updated!\n" . $plink;
-    $people = TWILIO_PEOPLE_TO_SMS;
+    $people = TWILIO_PEOPLE_TO_SMS;  // get the list of the people we're going to notify.
     syslog(LOG_DEBUG, "message: $message");
     $task = new PushTask('/twilio_sms.php', ['message' => $message, 'people' => $people], ['method' => 'POST']);
     $task_name = $task->add();
 }
 add_action('publish_post', 'wpr_updateNotification');
 
+// when a scheduled post is created (with 'future' status), schedule a push task the appropriate
+// number of seconds int the future, to publish it.
 function schedulePublishTask($post_id) {
 	syslog(LOG_DEBUG, "in schedulePublishTask");
 	$post = get_post($post_id);
@@ -480,8 +483,8 @@ function schedulePublishTask($post_id) {
 	if ($post_status == 'future') {
 		$now = time();
 		$post_time = strtotime($post->post_date_gmt);
-		$seconds_until_post = $post_time - $now;
-		$max_seconds = $now + 2592000 - 60;
+		$seconds_until_post = $post_time - $now;  // figure out how many seconds until the post should be published
+		$max_seconds = $now + 2592000 - 60;  //subtract a minute from the max allowed delay to be cautious
 		if ($seconds_until_post > 0 && $seconds_until_post < $max_seconds) {
 			syslog(LOG_DEBUG, "seconds until post: " . $seconds_until_post);
 			syslog(LOG_DEBUG, "creating publish task for $post_id, to run in $seconds_until_post");
